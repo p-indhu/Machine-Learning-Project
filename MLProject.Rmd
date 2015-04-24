@@ -1,0 +1,66 @@
+---
+title: "MLProject"
+
+---
+###Analysis of Weight Lifting Data
+##Overview
+In this report, data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants performing barbell lifts correctly and incorrectly in 5 different ways is analysed, used to train a machine learning algorithm and predict similar data for the manner in which they did the exercise.
+**Random Forest algorithm performs quite accurately with non-linear settings and hence is best suited** to train this dataset.  Alternatives were also considered and they had lesser accuracy.
+**Accuracy of the prediction with Random Forest for this dataset is more than 99%**.
+
+##Data Pre-processing
+
+Dataset consists of 160 variables which also includes statistical variables indicating average, standard deviation, variance etc. for a particular window.  These variables are not used to train.  Just the raw reading data from the belt, forearm, arm and dumbell will be used for prediction because statistical variables are just a reflection of the raw data. Also, name and other irrelevant variables like timestamp are dropped from the training data.
+
+```{r warning=FALSE, message=FALSE}
+library(caret)
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
+cols <- colnames(training)
+cols <- cols[8:160]
+cols <- cols[!grepl("kurtosis|skewness|max|min|amplitude|var_|avg_|stddev_", cols)]
+training <- subset(training, select = cols)
+```
+
+##Training and cross-validation
+
+The pre-processed data is partitioned into a training(60%) and testing(40%) dataset.
+"train" function of caret package is used on the training data.  Method is set to "rf" and "classe" variable is the outcome predicted based on the rest of the variables.  **'train' function of caret package performs cross-validation internally and picks the optimal model based on accuracy(Refer plot below).** 
+```{r}
+set.seed(975)
+inTrain = createDataPartition(training$classe, p = 0.60)[[1]]
+trainsub = training[ inTrain,]
+testsub = training[-inTrain,]
+rm("training")
+```
+
+
+```{r cache =TRUE}
+set.seed(12345)
+modelfit1 <- train(classe ~ ., method = "rf", data = trainsub)
+```
+
+Graph below shows the accuracy of each model tried during cross-validation.
+
+```{r}
+plot(modelfit1)
+```
+
+
+##In-sample and Out-of-sample errors
+
+In-sample error, error on the same data used to build the predictor is 0(1-accuracy,see below for accuracy). 
+
+```{r warning=FALSE, message=FALSE}
+trainprediction <- predict(modelfit1, newdata = trainsub)
+confusionMatrix(trainprediction, trainsub$classe)
+```
+
+The out-of sample error is error for prediction on a new data. It is usually a little greater than the in-sample error. **Since the in-sample error is zero, out-of sample error will be very close to zero.  We can expect it to be less than .01%**.
+Actual out-of sample error is around 0.0098%(1-accuracy, see below for accuracy). From the statistics of individual classes it can be seen that class "A" has the highest sensitivity.
+
+```{r warning=FALSE,message=FALSE}
+prediction <- predict(modelfit1, newdata=testsub)
+confusionMatrix(prediction, testsub$classe)
+```
+
